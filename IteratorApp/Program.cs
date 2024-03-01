@@ -7,7 +7,17 @@ namespace IteratorApp
 		static void Main()
 		{
 			TreeNode<int> tree = CreateTree();
-			tree.ForEach( n => Console.Write(n + " "));
+
+			Console.WriteLine("---------- inner iterator ----------");
+			tree.ForEach(n => Console.Write(n + " "));
+			Console.WriteLine("");
+
+			Console.WriteLine("---------- outer iterator ----------");
+			foreach (var item in tree)
+			{
+				Console.Write(item + " ");
+			}
+			Console.WriteLine("");
 		}
 
 		static TreeNode<int> CreateTree()

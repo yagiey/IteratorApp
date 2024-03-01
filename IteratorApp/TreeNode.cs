@@ -1,8 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace IteratorApp
 {
-	internal class TreeNode<T> : IIterableIn<T>
+	internal class TreeNode<T> : IIterableIn<T>, IEnumerable<T>
 	{
 		public TreeNode(T value)
 		{
@@ -23,7 +24,8 @@ namespace IteratorApp
 		public void ForEach(Action<T> action)
 		{
 			JobHolder holder = new();
-			ForEachDetail(this, action, holder, null);
+			IProcedure<T> proc = new Procedure<T>(action);
+			ForEachDetail(this, proc, holder, null);
 			while (holder.Job is not null)
 			{
 				holder.Job();
@@ -32,7 +34,7 @@ namespace IteratorApp
 
 		static void ForEachDetail(
 		  TreeNode<T> root,
-		  Action<T> action,
+		  IProcedure<T> proc,
 		  JobHolder holder,
 		  Action? cont)
 		{
@@ -43,23 +45,23 @@ namespace IteratorApp
 				leftmost = leftmost.Left;
 			}
 
-			AtLeftMost(leftmost, action, holder, cont);
+			AtLeftMost(leftmost, proc, holder, cont);
 		}
 
 		static void AtLeftMost(
 		  TreeNode<T> leftmost,
-		  Action<T> action,
+		  IProcedure<T> proc,
 		  JobHolder holder,
 		  Action? cont)
 		{
-			action(leftmost.Value);
+			proc.Process(leftmost.Value);
 
 			if (leftmost.Parent is not null)
 			{
 				if (leftmost == leftmost.Parent.Left)
 				{
 					holder.Job =
-					  () => OnTheWay(leftmost.Parent, action, holder);
+					  () => OnTheWay(leftmost.Parent, proc, holder);
 				}
 				else
 				{
@@ -72,9 +74,9 @@ namespace IteratorApp
 			}
 		}
 
-		static void OnTheWay(TreeNode<T> node, Action<T> action, JobHolder holder)
+		static void OnTheWay(TreeNode<T> node, IProcedure<T> proc, JobHolder holder)
 		{
-			action(node.Value);
+			proc.Process(node.Value);
 
 			if (node.Right is not null)
 			{
@@ -83,15 +85,15 @@ namespace IteratorApp
 				{
 					// exit
 					holder.Job =
-					  () => ForEachDetail(node.Right, action, holder, null);
+					  () => ForEachDetail(node.Right, proc, holder, null);
 				}
 				else
 				{
 					holder.Job =
 					  () => ForEachDetail(
 						node.Right,
-						action, holder,
-						() => OnTheWay(nextRoot, action, holder));
+						proc, holder,
+						() => OnTheWay(nextRoot, proc, holder));
 				}
 			}
 			else
@@ -99,7 +101,7 @@ namespace IteratorApp
 				if (node.Parent is not null)
 				{
 					holder.Job =
-					  () => OnTheWay(node.Parent, action, holder);
+					  () => OnTheWay(node.Parent, proc, holder);
 				}
 				else
 				{
@@ -119,6 +121,24 @@ namespace IteratorApp
 				node = node.Parent;
 			}
 			return null;
+		}
+
+		public IEnumerator<T> GetEnumerator()
+		{
+			JobHolder holder = new();
+			IProcedureWithMemory<T> proc =
+			  new ProcedureWithMemory<T>();
+
+			void init() => ForEachDetail(this, proc, holder, null);
+			holder.Job = init;
+
+			return new OutIterator<T>(holder, proc, init);
+		}
+
+		System.Collections.IEnumerator
+		System.Collections.IEnumerable.GetEnumerator()
+		{
+			return GetEnumerator();
 		}
 	}
 }
